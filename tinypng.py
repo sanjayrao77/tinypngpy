@@ -27,16 +27,19 @@ isverbose_global=True
 
 class PngCompress():
 	@staticmethod
-	def create(width,height,rows,isfast=False):
+	def create(width,height,rows,isfast=False,palette=None,transtable=None):
 		bio=io.BytesIO()
-		Bpp=int(len(rows[0])/width)
-		if Bpp==4: colortype=6 # rgba
-		elif Bpp==3: colortype=2 # rgb
-		elif Bpp==2: colortype=4 # greyscale+alpha
-		elif Bpp==1: colortype=0 # greyscale
-		else: raise ValueError
 		bio.write(b'\x89PNG\r\n\x1a\n')
-		PngCompress.writechunk(bio,b'IHDR',struct.pack('>2I5B',width,height,8,colortype,0,0,0))
+		if palette:
+			Bpp=1
+			bits=int(8*len(rows[0])/width)
+			PngCompress.writechunk(bio,b'IHDR',struct.pack('>2I5B',width,height,bits,3,0,0,0))
+			PngCompress.writechunk(bio,b'PLTE',palette)
+			if transtable: PngCompress.writechunk(bio,b'tRNS',transtable)
+		else:
+			Bpp=int(len(rows[0])/width)
+			colortype=(0,4,2,6)[Bpp-1] # 1:greyscale, 2:greyscale+alpha, 3:rgb, 4:rgba
+			PngCompress.writechunk(bio,b'IHDR',struct.pack('>2I5B',width,height,8,colortype,0,0,0))
 		if isfast: PngCompress.write_simple(bio,rows,3)
 		else: PngCompress.write_small(bio,rows,width,Bpp)
 		PngCompress.writechunk(bio,b'IEND',b'')
@@ -73,10 +76,10 @@ class PngCompress():
 	def write_small(bio,rows,width,Bpp):
 		zco=zlib.compressobj(level=9,memLevel=9)
 		zba=bytearray()
-		widthxB=width*Bpp
-		ba=bytearray(1+widthxB)
-		tba=bytearray(1+widthxB)
-		urow=[0]*widthxB
+		stride=len(rows[0])
+		ba=bytearray(1+stride)
+		tba=bytearray(1+stride)
+		urow=[0]*stride
 		for row in rows:
 			ba[0]=0
 			ba[1:]=row
@@ -84,24 +87,24 @@ class PngCompress():
 			if True:
 				tba[0]=1 # Left
 				tba[1:1+Bpp]=row[0:Bpp]
-				for i in range(Bpp,widthxB): tba[i+1]=(row[i]-row[i-Bpp])%256
+				for i in range(Bpp,stride): tba[i+1]=(row[i]-row[i-Bpp])%256
 				tbal=PngCompress.getcompsize(zco,tba)
 				if tbal<bal: ba,tba,bal=(tba,ba,tbal)
 			if True:
 				tba[0]=2 # Up
-				for i in range(widthxB): tba[i+1]=(row[i]-urow[i])%256
+				for i in range(stride): tba[i+1]=(row[i]-urow[i])%256
 				tbal=PngCompress.getcompsize(zco,tba)
 				if tbal<bal: ba,tba,bal=(tba,ba,tbal)
 			if True:
 				tba[0]=3 # Left + Up
 				for i in range(Bpp): tba[i+1]=(row[i]-(urow[i]>>1))%256
-				for i in range(Bpp,widthxB): tba[i+1]=(row[i]-((row[i-Bpp]+urow[i])>>1))%256
+				for i in range(Bpp,stride): tba[i+1]=(row[i]-((row[i-Bpp]+urow[i])>>1))%256
 				tbal=PngCompress.getcompsize(zco,tba)
 				if tbal<bal: ba,tba,bal=(tba,ba,tbal)
 			if True:
 				tba[0]=4 # Paeth
 				for i in range(Bpp): tba[i+1]=(row[i]-PngCompress.paethpredictor(0,urow[i],0))%256
-				for i in range(Bpp,widthxB): tba[i+1]=(row[i]-PngCompress.paethpredictor(row[i-Bpp],urow[i],urow[i-Bpp]))%256
+				for i in range(Bpp,stride): tba[i+1]=(row[i]-PngCompress.paethpredictor(row[i-Bpp],urow[i],urow[i-Bpp]))%256
 				tbal=PngCompress.getcompsize(zco,tba)
 				if tbal<bal: ba,tba,bal=(tba,ba,tbal)
 			zba.extend(zco.compress(ba))
@@ -118,5 +121,7 @@ class FlatImage():
 		for i in range(height): self.rows.append(fillpixel*width)
 	def setpixel(self,x,y,pixel):
 		self.rows[y][x*self.Bpp:(x+1)*self.Bpp]=pixel
+	def getpixel(self,x,y):
+		return tuple(self.rows[y][x*self.Bpp:(x+1)*self.Bpp])
 	def getpng(self,isfast=False):
 		return PngCompress.create(self.width,self.height,self.rows,isfast)

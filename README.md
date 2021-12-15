@@ -43,11 +43,12 @@ f.close()
 
 ## Examples
 
-I've included an examples.py with 4 different image examples:
+I've included an examples.py with 5 different image examples:
 1. 32bit RGBA
 2. 24bit RGB
 3. 16bit Grayscale + Alpha
 4. 8bit Grayscale
+5. Indexed
 
 You can run examples.py to get a list of available examples:
 ```
@@ -62,6 +63,7 @@ Make a GRAYSCALE png (high compression): ./examples.py gray_small
 Make a GRAYSCALE png (low compression): ./examples.py gray_fast
 Make an RGBA png using tinytinypng.py: ./examples.py tiny_rgba
 Make an RGB png using tinytinypng.py: ./examples.py tiny_rgb
+Make an indexed png (high compression): ./examples.py indexed_small
 ```
 
 ## Performance
@@ -74,3 +76,15 @@ tinypng.py supports "isfast=True" for those times. With isfast=True,
 output is somewhat compressed but the priority is speed.
 There are examples of this in examples.py.
 
+## Indexed color
+
+tinypng.py supports 2bit, 4bit and 8bit indexed compression. PNG allows 1bit but
+that isn't currently supported.
+
+To use indexed compression, you'd need to pass tinypng.py an image that's already
+indexed, a color palette and an optional alpha-channel list. I've included
+"class IndexedImage" in indexedimage.py to automatically convert an RGBA image to
+an indexed image suitable for compressing with tinypng.py.
+
+The "indexed\_small" example in examples.py shows how to convert an RGBA image to
+indexed and then compress it to a png.

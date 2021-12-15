@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import sys
 try:
 	import tinypng
 except ImportError:
@@ -8,7 +9,10 @@ try:
 	import tinytinypng
 except ImportError:
 	tinytinypng=None
-import sys
+try:
+	import indexedimage
+except ImportError:
+	indexedimage=None
 
 def rgba_small(isfast=False):
 	if not tinypng: raise ValueError("tinypng is not loaded")
@@ -92,6 +96,22 @@ def tiny_rgb():
 	f.write(b)
 	f.close()
 
+def indexed_small(isfast=False):
+	if not tinypng: raise ValueError("tinypng is not loaded")
+	if not indexedimage: raise ValueError("indexedimage is not loaded")
+	outfilename='out.png'
+	image=tinypng.FlatImage(500,500,[0,0,0,128])
+	for i in range(500):
+		image.setpixel(i,i,(255,0,0,255))
+		image.setpixel(499-i,i,(255,255,0,255))
+	print('Converting to indexed image')
+	ii=indexedimage.IndexedImage(image)
+	print('Making png and writing to %s'%outfilename)
+	b=ii.getpng(isfast=isfast)
+	f=open(outfilename,'wb')
+	f.write(b)
+	f.close()
+
 def printhelp():
 	print('tinypng.py examples')
 	print('Make an RGBA png (high compression): ./examples.py rgba_small')
@@ -104,6 +124,7 @@ def printhelp():
 	print('Make a GRAYSCALE png (low compression): ./examples.py gray_fast')
 	print('Make an RGBA png using tinytinypng.py: ./examples.py tiny_rgba')
 	print('Make an RGB png using tinytinypng.py: ./examples.py tiny_rgb')
+	print('Make an indexed png (high compression): ./examples.py indexed_small')
 
 if len(sys.argv)<2: printhelp()
 for arg in sys.argv[1:]:
